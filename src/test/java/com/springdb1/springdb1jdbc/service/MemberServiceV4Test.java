@@ -1,7 +1,9 @@
 package com.springdb1.springdb1jdbc.service;
 
 import com.springdb1.springdb1jdbc.domain.Member;
+import com.springdb1.springdb1jdbc.repository.MemberRepository;
 import com.springdb1.springdb1jdbc.repository.MemberRepositoryV3;
+import com.springdb1.springdb1jdbc.repository.MemberRepositoryV4_1;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -12,19 +14,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
 
-import static com.springdb1.springdb1jdbc.connection.ConnectionConst.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 트랜잭션 - DataSource, transactionManager 자동 등록
+ * 예외 누수 문제 해결
+ * 체크 예외를 런타임 예외로 변경
+ * MemberRepository 인터페이스 의존
  */
 @Slf4j
 @SpringBootTest
@@ -35,9 +35,9 @@ class MemberServiceV4Test {
     public static final String MEMBER_EX = "ex";
 
     @Autowired
-    private MemberRepositoryV3 memberRepository;
+    private MemberRepository memberRepository;
     @Autowired
-    private MemberServiceV3_3 memberService;
+    private MemberServiceV4 memberService;
 
     @TestConfiguration
     static class TestConfig {
@@ -49,13 +49,13 @@ class MemberServiceV4Test {
         }
 
         @Bean
-        MemberRepositoryV3 memberRepositoryV3() {
-            return new MemberRepositoryV3(dataSource);
+        MemberRepository memberRepository() {
+            return new MemberRepositoryV4_1(dataSource);
         }
 
         @Bean
-        MemberServiceV3_3 memberServiceV3_3() {
-            return new MemberServiceV3_3(memberRepositoryV3());
+        MemberServiceV4 memberServiceV4() {
+            return new MemberServiceV4(memberRepository());
         }
     }
 
@@ -89,8 +89,8 @@ class MemberServiceV4Test {
         log.info("END TX");
 
         //then
-        Member findMemberA = memberRepository.findByid(memberA.getMemberId());
-        Member findMemberB = memberRepository.findByid(memberB.getMemberId());
+        Member findMemberA = memberRepository.findById(memberA.getMemberId());
+        Member findMemberB = memberRepository.findById(memberB.getMemberId());
         assertThat(findMemberA.getMoney()).isEqualTo(8000);
         assertThat(findMemberB.getMoney()).isEqualTo(12000);
     }
@@ -109,8 +109,8 @@ class MemberServiceV4Test {
                 .isInstanceOf(IllegalStateException.class);
 
         //then
-        Member findMemberA = memberRepository.findByid(memberA.getMemberId());
-        Member findMemberB = memberRepository.findByid(memberEx.getMemberId());
+        Member findMemberA = memberRepository.findById(memberA.getMemberId());
+        Member findMemberB = memberRepository.findById(memberEx.getMemberId());
         assertThat(findMemberA.getMoney()).isEqualTo(10000);
         assertThat(findMemberB.getMoney()).isEqualTo(10000);
     }
